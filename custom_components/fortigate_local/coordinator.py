@@ -145,7 +145,12 @@ class FortiGateCoordinator(DataUpdateCoordinator[FortiGateData]):
                 self._warned.add(name)
             return None
         except FortiGateError as err:
-            _LOGGER.debug("%s fetch failed: %s", name, err)
+            # Warn once per outage so a broken endpoint isn't silent; debug after.
+            if name not in self._warned:
+                _LOGGER.warning("%s unavailable: %s", name, err)
+                self._warned.add(name)
+            else:
+                _LOGGER.debug("%s fetch failed: %s", name, err)
             return None
         self._warned.discard(name)
         return result

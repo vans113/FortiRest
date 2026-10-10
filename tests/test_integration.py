@@ -241,3 +241,12 @@ async def test_presence_rides_out_short_gaps(hass, aioclient_mock, entry):
     with patch("homeassistant.util.dt.utcnow", return_value=now + timedelta(minutes=11)):
         await poll(hass, entry)
         assert hass.states.get(tracker_id).state == STATE_NOT_HOME
+
+
+async def test_resource_usage_requested_without_filters(hass, fortigate, entry):
+    """FortiOS 7.6.7 returns HTTP 400 for resource=cpu,mem,session."""
+    await setup(hass, entry)
+    calls = [c for c in fortigate.mock_calls if "resource/usage" in str(c[1])]
+    assert calls
+    for _method, url, *_ in calls:
+        assert "resource=" not in str(url)

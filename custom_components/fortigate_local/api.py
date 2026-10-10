@@ -102,11 +102,9 @@ class FortiGateApi:
 
     async def get_resources(self) -> dict[str, Any]:
         """CPU / memory / session usage."""
-        data = await self._request(
-            "GET",
-            "monitor/system/resource/usage",
-            params={"resource": "cpu,mem,session", "interval": "1-min"},
-        )
+        # No filters: FortiOS 7.6 rejects a comma-separated `resource` list (HTTP 400),
+        # and the unfiltered call returns cpu/mem/session together.
+        data = await self._request("GET", "monitor/system/resource/usage")
         return data.get("results") or {}
 
     async def get_interfaces(self) -> dict[str, dict[str, Any]]:
