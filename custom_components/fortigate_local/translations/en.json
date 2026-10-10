@@ -1,0 +1,46 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to FortiGate",
+        "description": "Use a REST API admin token. Set the API admin's trusted host to this Home Assistant's IP.",
+        "data": {
+          "host": "Host or IP",
+          "port": "HTTPS admin port",
+          "api_token": "API token",
+          "verify_ssl": "Verify SSL certificate",
+          "vdom": "VDOM (leave empty unless you use multi-VDOM)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "FortiGate token rejected",
+        "description": "The API token no longer works. Paste a new one.",
+        "data": { "api_token": "API token" }
+      }
+    },
+    "error": {
+      "cannot_connect": "Couldn't reach the FortiGate. Check host, port, and that the admin port is reachable from Home Assistant.",
+      "invalid_auth": "Token rejected. Check the token and that the API admin's trusted host includes this Home Assistant.",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This FortiGate is already set up.",
+      "reauth_successful": "Token updated.",
+      "unique_id_mismatch": "That token belongs to a different FortiGate."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "FortiGate options",
+        "data": {
+          "scan_interval": "Poll interval",
+          "wan_interfaces": "WAN interfaces",
+          "policies": "Policies to show enabled/disabled state for",
+          "tracked_devices": "Devices to track for presence",
+          "consider_home": "Keep a device home this long after it was last seen"
+        }
+      }
+    }
+  }
+}
