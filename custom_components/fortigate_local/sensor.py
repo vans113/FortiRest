@@ -35,6 +35,18 @@ def _resource(key: str) -> Callable[[FortiGateData], Any]:
     return get
 
 
+def _cpu_peak(data: FortiGateData) -> Any:
+    """Highest CPU sample FortiOS recorded in the last 10 minutes (the GUI's figure)."""
+    if data.resources is None:
+        return None
+    series = data.resources.get("cpu")
+    entry = series[0] if isinstance(series, list) and series else series
+    if not isinstance(entry, dict):
+        return None
+    window = (entry.get("historical") or {}).get("10-min") or {}
+    return window.get("max")
+
+
 def _cpu(data: FortiGateData) -> Any:
     # Same number as the GUI: all-core average from per-core idle times.
     avg, _cores = cpu_from_performance(data.performance)
@@ -56,6 +68,15 @@ SYSTEM_SENSORS: tuple[SystemSensorDescription, ...] = (
         suggested_display_precision=0,
         value_fn=_cpu,
         section="cpu",
+    ),
+    SystemSensorDescription(
+        key="cpu_peak",
+        name="CPU peak (10 min)",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:chart-bell-curve-cumulative",
+        value_fn=_cpu_peak,
+        section="resources",
     ),
     SystemSensorDescription(
         key="memory",

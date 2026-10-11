@@ -280,3 +280,15 @@ async def test_diagnostics_redacts_token(hass, fortigate, entry):
     assert diag["raw"]["status"]["serial"] == "**REDACTED**"
     assert diag["raw"]["performance"]["cpu"]["idle"] == 89
     assert diag["sections_available"]["performance"] is True
+
+
+async def test_cpu_peak_reads_ten_minute_max(hass, fortigate, entry):
+    await setup(hass, entry)
+    assert state(hass, "sensor", "cpu_peak").state == "11"
+
+
+async def test_cpu_peak_unknown_without_history(hass, aioclient_mock, entry):
+    res = {"results": {"cpu": [{"current": 7}], "mem": [{"current": 41}], "session": [{"current": 5}]}}
+    mock_fortigate(aioclient_mock, {"monitor/system/resource/usage": res})
+    await setup(hass, entry)
+    assert state(hass, "sensor", "cpu_peak").state == "unknown"

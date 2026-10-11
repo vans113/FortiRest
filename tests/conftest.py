@@ -43,7 +43,10 @@ STATUS = {
 }
 RESOURCES = {
     "results": {
-        "cpu": [{"current": 7, "historical": {}}],
+        "cpu": [{"current": 7, "historical": {
+            "1-min": {"max": 9, "average": 3},
+            "10-min": {"max": 11, "average": 0},
+        }}],
         "mem": [{"current": 41, "historical": {}}],
         "session": [{"current": 1834, "historical": {}}],
     },
