@@ -116,7 +116,24 @@ DHCP = {
     "status": "success",
 }
 
+PERFORMANCE = {
+    "results": {
+        "cpu": {
+            "cores": [
+                {"user": 5, "system": 3, "nice": 0, "idle": 92, "iowait": 0},
+                {"user": 10, "system": 6, "nice": 0, "idle": 84, "iowait": 0},
+                {"user": 1, "system": 1, "nice": 0, "idle": 98, "iowait": 0},
+                {"user": 15, "system": 6, "nice": 0, "idle": 79, "iowait": 0},
+            ],
+            "user": 8, "system": 4, "nice": 0, "idle": 89, "iowait": 0,
+        },
+        "mem": {"total": 8000000, "used": 3100000, "free": 4900000},
+    },
+    "status": "success",
+}
+
 ENDPOINTS = {
+    "monitor/system/performance/status": PERFORMANCE,
     "monitor/system/status": STATUS,
     "monitor/system/resource/usage": RESOURCES,
     "monitor/system/interface": INTERFACES,

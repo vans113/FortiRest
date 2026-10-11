@@ -28,7 +28,7 @@ def _fmt(fw: dict[str, Any]) -> str:
 class FirmwareUpdate(FortiGateEntity, UpdateEntity):
     """Shows the newest firmware FortiGuard offers within the same major line."""
 
-    _attr_name = "Firmware"
+    _attr_name = "Firmware update"
     _attr_title = "FortiOS"
 
     def __init__(self, coordinator: FortiGateCoordinator) -> None:

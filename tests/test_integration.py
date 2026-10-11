@@ -109,7 +109,11 @@ async def test_entities_after_setup(hass, fortigate, entry):
     await setup(hass, entry)
     assert entry.state is ConfigEntryState.LOADED
 
-    assert state(hass, "sensor", "cpu").state == "7"
+    cpu = state(hass, "sensor", "cpu")
+    # GUI-style all-core average (100 - idle), not the usage endpoint's 7.
+    assert cpu.state == "11.0"
+    assert cpu.attributes["cores"] == [8.0, 16.0, 2.0, 21.0]
+    assert cpu.attributes["busiest_core"] == 21.0
     assert state(hass, "sensor", "memory").state == "41"
     assert state(hass, "sensor", "sessions").state == "1834"
     assert state(hass, "sensor", "wan_wan1_ip").state == "203.0.113.10"
@@ -206,7 +210,7 @@ async def test_one_forbidden_endpoint_only_blanks_its_entities(hass, aioclient_m
     mock_fortigate(aioclient_mock, {"monitor/vpn/ipsec": 403})
     await setup(hass, entry)
     assert entry.state is ConfigEntryState.LOADED
-    assert state(hass, "sensor", "cpu").state == "7"
+    assert state(hass, "sensor", "cpu").state == "11.0"
     mock_fortigate(aioclient_mock)
     await poll(hass, entry)
     # Tunnels appear once the endpoint becomes readable.
@@ -250,3 +254,29 @@ async def test_resource_usage_requested_without_filters(hass, fortigate, entry):
     assert calls
     for _method, url, *_ in calls:
         assert "resource=" not in str(url)
+
+
+async def test_cpu_falls_back_when_performance_unreadable(hass, aioclient_mock, entry):
+    mock_fortigate(aioclient_mock, {"monitor/system/performance/status": 403})
+    await setup(hass, entry)
+    assert state(hass, "sensor", "cpu").state == "7"
+
+
+async def test_cpu_average_from_cores_when_no_aggregate(hass, aioclient_mock, entry):
+    perf = {"results": {"cpu": {"cores": [{"idle": 90}, {"idle": 70}]}}}
+    mock_fortigate(aioclient_mock, {"monitor/system/performance/status": perf})
+    await setup(hass, entry)
+    assert state(hass, "sensor", "cpu").state == "20.0"
+
+
+async def test_diagnostics_redacts_token(hass, fortigate, entry):
+    from custom_components.fortigate_local.diagnostics import (
+        async_get_config_entry_diagnostics,
+    )
+
+    await setup(hass, entry)
+    diag = await async_get_config_entry_diagnostics(hass, entry)
+    assert diag["entry"]["api_token"] == "**REDACTED**"
+    assert diag["raw"]["status"]["serial"] == "**REDACTED**"
+    assert diag["raw"]["performance"]["cpu"]["idle"] == 89
+    assert diag["sections_available"]["performance"] is True

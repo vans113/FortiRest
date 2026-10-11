@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import FortiGateConfigEntry
-from .coordinator import FortiGateCoordinator, FortiGateData
+from .coordinator import FortiGateCoordinator, FortiGateData, cpu_from_performance
 from .entity import FortiGateEntity
 
 
@@ -35,6 +35,12 @@ def _resource(key: str) -> Callable[[FortiGateData], Any]:
     return get
 
 
+def _cpu(data: FortiGateData) -> Any:
+    # Same number as the GUI: all-core average from per-core idle times.
+    avg, _cores = cpu_from_performance(data.performance)
+    return avg if avg is not None else _resource("cpu")(data)
+
+
 @dataclass(frozen=True, kw_only=True)
 class SystemSensorDescription(SensorEntityDescription):
     value_fn: Callable[[FortiGateData], Any]
@@ -47,8 +53,9 @@ SYSTEM_SENSORS: tuple[SystemSensorDescription, ...] = (
         name="CPU usage",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=_resource("cpu"),
-        section="resources",
+        suggested_display_precision=0,
+        value_fn=_cpu,
+        section="cpu",
     ),
     SystemSensorDescription(
         key="memory",
@@ -105,10 +112,21 @@ class FortiGateSystemSensor(FortiGateEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        return (
-            super().available
-            and getattr(self.coordinator.data, self.entity_description.section) is not None
-        )
+        data = self.coordinator.data
+        if not super().available:
+            return False
+        if self.entity_description.section == "cpu":
+            return data.performance is not None or data.resources is not None
+        return getattr(data, self.entity_description.section) is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if self.entity_description.key != "cpu":
+            return None
+        _avg, cores = cpu_from_performance(self.coordinator.data.performance)
+        if not cores:
+            return None
+        return {"cores": cores, "busiest_core": max(cores), "core_count": len(cores)}
 
     @property
     def native_value(self) -> Any:

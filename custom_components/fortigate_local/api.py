@@ -107,6 +107,11 @@ class FortiGateApi:
         data = await self._request("GET", "monitor/system/resource/usage")
         return data.get("results") or {}
 
+    async def get_performance(self) -> dict[str, Any]:
+        """Per-core CPU idle/user/system times, as the FortiGate GUI uses."""
+        data = await self._request("GET", "monitor/system/performance/status")
+        return data.get("results") or {}
+
     async def get_interfaces(self) -> dict[str, dict[str, Any]]:
         """Live interface table keyed by interface name."""
         data = await self._request(

@@ -58,12 +58,37 @@ def tunnel_is_up(tunnel: dict[str, Any]) -> bool:
     return any(p.get("status") == "up" for p in tunnel.get("proxyid") or [])
 
 
+def _usage_from_idle(entry: Any) -> float | None:
+    """100 - idle for one CPU block ({"idle": n, ...})."""
+    if not isinstance(entry, dict) or entry.get("idle") is None:
+        return None
+    try:
+        return round(max(0.0, min(100.0, 100.0 - float(entry["idle"]))), 1)
+    except (TypeError, ValueError):
+        return None
+
+
+def cpu_from_performance(perf: dict[str, Any] | None) -> tuple[float | None, list[float]]:
+    """(all-core average %, per-core %) from monitor/system/performance/status."""
+    if not perf:
+        return None, []
+    cpu = perf.get("cpu")
+    if not isinstance(cpu, dict):
+        return None, []
+    cores = [u for u in (_usage_from_idle(c) for c in cpu.get("cores") or []) if u is not None]
+    avg = _usage_from_idle(cpu)
+    if avg is None and cores:
+        avg = round(sum(cores) / len(cores), 1)
+    return avg, cores
+
+
 @dataclass
 class FortiGateData:
     """One poll's worth of data. A section is None when its endpoint failed."""
 
     status: dict[str, Any]
     resources: dict[str, Any] | None = None
+    performance: dict[str, Any] | None = None
     interfaces: dict[str, dict[str, Any]] | None = None
     ipsec: dict[str, dict[str, Any]] | None = None
     policies: dict[int, dict[str, Any]] | None = None
@@ -98,6 +123,8 @@ class FortiGateCoordinator(DataUpdateCoordinator[FortiGateData]):
         self._last_wan_ip: dict[str, str | None] = {}
         self.last_seen: dict[str, datetime] = {}
         self._warned: set[str] = set()
+        # Latest raw payloads for the diagnostics download (no secrets in these).
+        self.raw: dict[str, Any] = {}
 
     # ---- options helpers -------------------------------------------------
 
@@ -165,8 +192,9 @@ class FortiGateCoordinator(DataUpdateCoordinator[FortiGateData]):
             raise UpdateFailed(str(err)) from err
 
         try:
-            resources, interfaces, ipsec, policies, arp = await asyncio.gather(
+            resources, performance, interfaces, ipsec, policies, arp = await asyncio.gather(
                 self._optional("Resource usage", self.api.get_resources()),
+                self._optional("Performance status", self.api.get_performance()),
                 self._optional("Interfaces", self.api.get_interfaces()),
                 self._optional("IPsec", self.api.get_ipsec()),
                 self._optional("Firewall policies", self.api.get_policies()),
@@ -185,6 +213,7 @@ class FortiGateCoordinator(DataUpdateCoordinator[FortiGateData]):
         data = FortiGateData(
             status=status,
             resources=resources,
+            performance=performance,
             interfaces=interfaces,
             ipsec=(
                 # Skip per-client dial-up instances; they'd create entity churn.
@@ -204,6 +233,8 @@ class FortiGateCoordinator(DataUpdateCoordinator[FortiGateData]):
                 else None
             ),
         )
+
+        self.raw = {"status": status, "resources": resources, "performance": performance}
 
         if interfaces is not None:
             data.rates = self._compute_rates(interfaces)
